@@ -17,17 +17,17 @@ export default [
     }), commonjs(), typescript(), terser(), cleanup()],
     external: ['ts-morph']
   },
-  {
-    input: "./src/index.ts",
-    output: {
-      dir: "dist",
-      format: "esm",
-      entryFileNames: "[name].esm.js",
-    },
-    plugins: [resolve({
-      preferBuiltins: false,
-    }), commonjs(), typescript(), terser({
-      module: true
-    }), cleanup()],
-  },
+  // {
+  //   input: "./src/index.ts",
+  //   output: {
+  //     dir: "dist",
+  //     format: "esm",
+  //     entryFileNames: "[name].esm.js",
+  //   },
+  //   plugins: [resolve({
+  //     preferBuiltins: false,
+  //   }), commonjs(), typescript(), terser({
+  //     module: true
+  //   }), cleanup()],
+  // },
 ];
