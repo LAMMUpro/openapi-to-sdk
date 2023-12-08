@@ -15,29 +15,28 @@ function main() {
   const openapiObject = parseOpenApiFile('./swagger.demo.json');
   const project = new Project();
   const sourceFile = project.createSourceFile('nestSDK.ts', "");
-  console.log(sourceFile)
-  // const classDeclaration = sourceFile.addClass({
-  //   name: "ExampleClass",
-  // });
+  const classDeclaration = sourceFile.addClass({
+    name: "ExampleClass",
+  });
 
-  // classDeclaration.addProperty({
-  //   name: "exampleProperty",
-  //   type: "string",
-  //   initializer: `"Hello, World!"`,
-  // });
+  classDeclaration.addProperty({
+    name: "exampleProperty",
+    type: "string",
+    initializer: `"Hello, World!"`,
+  });
   
-  // const exampleMethod = classDeclaration.addMethod({
-  //   name: "exampleMethod",
-  //   returnType: "void",
-  // });
-  // exampleMethod.setBodyText(`console.log(this.exampleProperty);`);
+  const exampleMethod = classDeclaration.addMethod({
+    name: "exampleMethod",
+    returnType: "void",
+  });
+  exampleMethod.setBodyText(`console.log(this.exampleProperty);`);
 
-  // sourceFile.formatText({
-  //   indentSize: 2,
-  //   convertTabsToSpaces: true,
-  // });
+  sourceFile.formatText({
+    indentSize: 2,
+    convertTabsToSpaces: true,
+  });
 
-  // console.log(sourceFile.getFullText());
+  console.log(sourceFile.getFullText());
 }
 
 main();
