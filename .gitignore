@@ -1,3 +1,5 @@
 node_modules
 dist
 lib
+swagger.demo.json
+swagger.demo.yaml
