@@ -11,8 +11,9 @@
     "skipLibCheck": true,
     "moduleResolution": "Node",
     "baseUrl": "./",
-    "paths": {},
+    "paths": {}
   },
-  "include": ["src/**/*.ts"],
+  "ts-node": { "esm": true },
+  "include": ["src/*.ts", "src/**/*.ts"],
   "exclude": ["node_modules"],
 }
