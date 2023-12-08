@@ -43,5 +43,8 @@
       "import": "./dist/index.esm.js",
       "require": "./dist/index.cjs.js"
     }
+  },
+  "dependencies": {
+    "ts-morph": "^21.0.1"
   }
 }
