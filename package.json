@@ -1,0 +1,9 @@
+{
+  "name": "@lammu/openapi-to-sdk",
+  "version": "1.0.0",
+  "description": "generate client sdk by openapi.json or openapi.yaml",
+  "main": "index.js",
+  "author": "lammu",
+  "license": "MIT",
+  "private": false
+}
