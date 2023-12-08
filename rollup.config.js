@@ -12,7 +12,10 @@ export default [
       format: "cjs",
       entryFileNames: "[name].cjs.js",
     },
-    plugins: [resolve(), commonjs(), typescript(), terser(), cleanup()],
+    plugins: [resolve({
+      preferBuiltins: false,
+    }), commonjs(), typescript(), terser(), cleanup()],
+    external: ['ts-morph']
   },
   {
     input: "./src/index.ts",
@@ -21,7 +24,9 @@ export default [
       format: "esm",
       entryFileNames: "[name].esm.js",
     },
-    plugins: [resolve(), commonjs(), typescript(), terser({
+    plugins: [resolve({
+      preferBuiltins: false,
+    }), commonjs(), typescript(), terser({
       module: true
     }), cleanup()],
   },
