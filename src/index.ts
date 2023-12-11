@@ -1,6 +1,6 @@
 import * as fs from 'fs';
-import { Project, Scope, SourceFile } from "ts-morph";
-import { OpenAPIObject } from './types/openapi';
+import { ClassDeclaration, Project, Scope, SourceFile } from "ts-morph";
+import { OpenAPIObject, OperationObject, PathItemObject } from './types/openapi';
 import { writeArray, writeStatements } from './utils/index.js';
 
 /**
@@ -179,15 +179,106 @@ function generateCommonClass(sourceFile: SourceFile, openapiObject: OpenAPIObjec
 }
 
 /**
- * 生成xx
+ * 生成关键sdk
  */
-function generateA(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
+function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controller: {[key: string]: OperationObject & {
+  method: 'get'|'post'|'put'|'delete'
+  path: string
+}}) {
+
+
+  const initializerArray: string[] = [];
+  Object.keys(controller).forEach(functionName=>{
+    initializerArray.push(...[
+      `/** ${controller[functionName].description} */`,
+      `${functionName}: () => {`,
+      `return this.${controller[functionName].method}('${controller[functionName].path}')`,
+      '},',
+    ])
+  })
+
+  /** 控制器对象(内部) */
+  NestSDK.addProperty({
+    name: `_${controllerName}`,
+    scope: Scope.Private,
+    initializer: writer => writeArray(writer, [
+      '{',
+      ...initializerArray,
+      '}'
+    ])
+  });
+
+  /** 只读控制器对象(外部调用) */
+  NestSDK.addProperty({
+    name: `${controllerName}`,
+    isReadonly: true,
+    type: `Readonly<typeof this._${controllerName}>`,
+    initializer: `this._${controllerName}`
+  });
+}
+
+/**
+ * 循环生成sdk
+ */
+function generateSdks(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
+
+  writeStatements(sourceFile, [
+    'SDK'
+  ])
+
+  const NestSDK = sourceFile.addClass({
+    name: "NestSDK",
+    isExported: true,
+    extends: 'Request',
+  })
+
+  /** constructor */
+  NestSDK.addConstructor({
+    parameters: [
+      {
+        name: 'options',
+        hasQuestionToken: true,
+        type: 'Partial<OptionsType>'
+      }
+    ],
+    statements: 'super(options);'
+  });
 
   const paths = Object.keys(openapiObject.paths);
-
+  const controllerMap: {[key: string]: {[key: string]:OperationObject & {
+    method: 'get'|'post'|'put'|'delete'
+    path: string
+  }}} = {};
   paths.forEach(path=> {
+    const methods = (Object.keys(openapiObject.paths[path]) as Array<'get'|'post'|'put'|'delete'>).filter(method=>['get', 'post', 'put', 'delete'].includes(method));
+    methods.forEach(method=>{
+      let [controllerName, functionName] = openapiObject.paths[path][method]?.operationId?.split('_') as [string, string];
+      if (!controllerMap[controllerName]) {
+        controllerMap[controllerName] = {};
+      }
+      /** 重名情况!! */
+      if (controllerMap[controllerName][functionName]) {
+        //TODO, 命名
+        functionName = functionName + '_2';
+      }
+      controllerMap[controllerName][functionName] = {
+        ...openapiObject.paths[path][method]!,
+        method,
+        path,
+      }
+    })
 
+    // ([
+    //   { key: 'get', value: openapiObject.paths[path].get },
+    //   { key: 'post', value: openapiObject.paths[path].post },
+    //   { key: 'put', value: openapiObject.paths[path].put },
+    //   { key: 'delete', value: openapiObject.paths[path].delete },
+    // ] as const).filter(item=>item.value).map(item=>generateSdk(NestSDK, path, item.key, item.value!))
   })
+  Object.keys(controllerMap).forEach(controllerName=>{
+    generateSdk(NestSDK, controllerName, controllerMap[controllerName])
+  })
+  console.log(controllerMap)
 }
 
 function main() {
@@ -206,15 +297,15 @@ function main() {
   /** 生成公共类 */
   generateCommonClass(sourceFile, openapiObject);
 
-  /** 生成xx */
-  generateA(sourceFile, openapiObject);
+  /** 生成关键sdk */
+  generateSdks(sourceFile, openapiObject);
 
   sourceFile.formatText({
     indentSize: 2,
     convertTabsToSpaces: true,
   });
 
-  console.log(sourceFile.getFullText());
+  // console.log(sourceFile.getFullText());
 
   sourceFile.saveSync();
 }
