@@ -16,7 +16,7 @@ function request(options: {
   method: 'get' | 'post' | 'delete' | 'put'
   url: string
 }) {
-  fetch(options.url, {
+  return fetch(options.url, {
     method: options.method,
   })
 }
@@ -41,6 +41,7 @@ export class Request {
     this.request = options.request;
   }
 
+  /** 发送http请求 */
   async private sendRequest<T>(options: {
     method: 'get' | 'post' | 'delete' | 'put'
     path: string
@@ -58,14 +59,16 @@ export class Request {
     return res as any as T
   }
 
-  protected get(path: string) {
-    this.sendRequest({
+  /** 发送get请求 */
+  async protected get<T>(path: string) {
+    return this.sendRequest<T>({
       method: 'get',
       path,
     })
   }
 
-  protected post<T>(path: string) {
+  /** 发送post请求 */
+  async protected post<T>(path: string) {
     return this.sendRequest<T>({
       method: 'post',
       path,
