@@ -9,7 +9,7 @@ export function writeArray(writer: CodeBlockWriter, array: string[], newLine = t
 export function writeStatements(sourceFile: SourceFile, array: string[]) {
   sourceFile.addStatements(writer => {
     writer.write('/**').conditionalNewLine(true);
-    array.forEach(statement => writer.write(' *' + statement).conditionalNewLine(true))
+    array.forEach(statement => writer.write(' * ' + statement).conditionalNewLine(true))
     writer.write(' */').conditionalNewLine(true);
   })
 }
