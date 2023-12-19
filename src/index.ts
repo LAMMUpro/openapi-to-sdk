@@ -18,25 +18,72 @@ function parseOpenApiFile(filePath: string): OpenAPIObject {
  */
 function generateCommonType(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
   writeStatements(sourceFile, [
-    '父类初始化参数类型'
+    '基础对象'
   ])
-  // sourceFile.addStatements(writer => writeArray(writer, [
-  //   '/**',
-  //   ' * 父类初始化参数类型',
-  //   ' */'
-  // ]));
-
   sourceFile.addInterface({
-    name: 'OptionsType',
+    name: 'BaseObj',
+    typeParameters: [{ name: "T", default: 'any' }],
     properties: [
       {
-        name: 'baseUrl',
+        name: '[key: string]',
+        type: 'T',
+      },
+    ],
+  })
+
+  writeStatements(sourceFile, [
+    '请求类初始化参数类型'
+  ])
+  sourceFile.addInterface({
+    name: 'RequestInitType',
+    properties: [
+      {
+        docs: ['请求url中的baseUrl'],
+        name: 'origin',
         hasQuestionToken: true,
-        type: 'string'
+        type: 'string',
       },
       {
+        docs: ['自定义请求函数, 默认使用fetch'],
         name: 'request',
-        type: 'typeof request'
+        type: 'typeof _fetch_',
+      }
+    ],
+  })
+
+  writeStatements(sourceFile, [
+    '请求方法的接口'
+  ])
+  sourceFile.addInterface({
+    name: 'RequestType',
+    properties: [
+      {
+        docs: ['请求方法'],
+        name: 'method',
+        type: `'get' | 'post' | 'delete' | 'put'`,
+      },
+      {
+        docs: ['路径(不包含origin)'],
+        name: 'path',
+        type: 'string',
+      },
+      {
+        docs: ['路径参数'],
+        name: 'query',
+        hasQuestionToken: true,
+        type: 'BaseObj',
+      },
+      {
+        docs: ['body参数'],
+        name: 'data',
+        hasQuestionToken: true,
+        type: 'any',
+      },
+      {
+        docs: ['请求头'],
+        name: 'headers',
+        hasQuestionToken: true,
+        type: 'BaseObj',
       }
     ],
   })
@@ -46,36 +93,31 @@ function generateCommonType(sourceFile: SourceFile, openapiObject: OpenAPIObject
  * 生成公共方法
  */
 function generateCommonFunction(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
-  sourceFile.addStatements(writer => writer.newLine() && writeArray(writer, [
-    '/**',
-    ' * 请求方法(默认)',
-    ' */'
-  ]));
+  writeStatements(sourceFile, [
+    '请求方法(默认)',
+    '带请求结果处理过程'
+  ])
 
   sourceFile.addFunction({
-    name: 'request',
+    name: '_fetch_',
+    isAsync: true,
+    typeParameters: [{ name: 'T' }],
     parameters: [
       {
         name: 'options',
-        type: write => writeArray(write, [
-          '{',
-          `  method: 'get' | 'post' | 'delete' | 'put'`,
-          '  url: string',
-          '}'
-        ])
+        type: 'RequestType'
       }
     ],
-    returnType: '{}',
     statements: [
-      'return fetch(options.url, {',
-      'method: options.method,',
-      '})'
+      'const res = await fetch(options.path, options);',
+      'const result: T = await res.json();',
+      'return result;',
     ]
   })
 }
 
 /**
- * 生成公共类
+ * 生成请求类
  */
 function generateCommonClass(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
   writeStatements(sourceFile, [
@@ -86,33 +128,31 @@ function generateCommonClass(sourceFile: SourceFile, openapiObject: OpenAPIObjec
     name: "Request",
   })
 
-  /** constructor */
   Request.addConstructor({
     parameters: [
       {
         name: 'options',
         hasQuestionToken: true,
-        type: 'Partial<OptionsType>'
+        type: 'Partial<RequestInitType>'
       }
     ],
     statements: 'if (options) this.init(options);'
   });
 
-  /** baseUrl<属性> */
+  /** origin<属性> */
   Request.addProperty({
-    name: "baseUrl",
+    name: "origin",
     type: "string",
     hasQuestionToken: true,
     scope: Scope.Private,
-  }).addJsDoc('请求公共url');
+  }).addJsDoc('请求baseUrl');
 
   /** request方法<属性> */
   Request.addProperty({
     name: "request",
-    type: "typeof request",
-    hasQuestionToken: true,
     scope: Scope.Private,
-  }).addJsDoc('请求公共url');
+    initializer: '_fetch_',
+  }).addJsDoc('请求方法, 带请求结果处理过程');
 
   /** init<方法> */
   Request.addMethod({
@@ -120,12 +160,12 @@ function generateCommonClass(sourceFile: SourceFile, openapiObject: OpenAPIObjec
     parameters: [
       {
         name: 'options',
-        type: 'Partial<OptionsType>'
+        type: 'Partial<RequestInitType>'
       }
     ],
     statements: [
-      'this.baseUrl = options.baseUrl;',
-      'this.request = options.request;'
+      'this.origin = options.origin;',
+      'this.request = options.request || _fetch_;'
     ]
   }).addJsDoc('初始化sdk');
 
@@ -136,46 +176,19 @@ function generateCommonClass(sourceFile: SourceFile, openapiObject: OpenAPIObjec
     parameters: [
       {
         name: 'options',
-        type: write => writeArray(write, [
-          '{',
-          `method: 'get' | 'post' | 'delete' | 'put'`,
-          'path: string', 
-          '}'
-        ])
+        type: 'RequestType',
       }
     ],
     statements: [
-      'const api = this.request || request;',
-      `console.log('发送请求', options);`,
-      'const res = await api({',
-      'method: options.method,',
-      'url: `${this.baseUrl}${options.path}`',
+      'const res = await this.request<T>({',
+      '...options,',
+      'path: `${this.origin}${options.path}`',
       '});',
-      'return res as any as T'
-    ],
-    scope: Scope.Private,
-    isAsync: true,
-  }).addJsDoc('发送http请求');
-
-  /** 发送get请求<方法> */
-  Request.addMethod({
-    name: "get",
-    typeParameters: [{ name: "T" }],
-    parameters: [
-      {
-        name: 'path',
-        type: 'string'
-      }
-    ],
-    statements: [
-      'return this.sendRequest<T>({',
-      `method: 'get',`,
-      'path,',
-      '})',
+      'return res;',
     ],
     scope: Scope.Protected,
     isAsync: true,
-  }).addJsDoc('发送get请求');
+  }).addJsDoc('发送http请求');
 }
 
 /**
@@ -185,14 +198,18 @@ function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controll
   method: 'get'|'post'|'put'|'delete'
   path: string
 }}) {
-
-
+  /** 控制器请求方法集合 */
   const initializerArray: string[] = [];
   Object.keys(controller).forEach(functionName=>{
+    if (controller[functionName].description) {
+      initializerArray.push(`/** ${controller[functionName].description} */`)
+    } else {
+      initializerArray.push(`/** 该请求没有写备注! */`)
+    }
     initializerArray.push(...[
-      `/** ${controller[functionName].description} */`,
+      /** 远程方法 */
       `${functionName}: () => {`,
-      `return this.${controller[functionName].method}('${controller[functionName].path}')`,
+      `return this.sendRequest({method: '${controller[functionName].method}', path: '${controller[functionName].path}'})`,
       '},',
     ])
   })
@@ -238,7 +255,7 @@ function generateSdks(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
       {
         name: 'options',
         hasQuestionToken: true,
-        type: 'Partial<OptionsType>'
+        type: 'Partial<RequestInitType>'
       }
     ],
     statements: 'super(options);'
@@ -276,7 +293,7 @@ function generateSdks(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
     // ] as const).filter(item=>item.value).map(item=>generateSdk(NestSDK, path, item.key, item.value!))
   })
   Object.keys(controllerMap).forEach(controllerName=>{
-    generateSdk(NestSDK, controllerName, controllerMap[controllerName])
+    generateSdk(NestSDK, controllerName, controllerMap[controllerName]);
   })
   console.log(controllerMap)
 }
@@ -294,7 +311,7 @@ function main() {
   /** 生成公共方法 */
   generateCommonFunction(sourceFile, openapiObject);
 
-  /** 生成公共类 */
+  /** 生成请求类 */
   generateCommonClass(sourceFile, openapiObject);
 
   /** 生成关键sdk */
