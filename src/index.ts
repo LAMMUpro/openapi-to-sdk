@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import { ClassDeclaration, Project, Scope, SourceFile } from "ts-morph";
-import { OpenAPIObject, OperationObject, PathItemObject } from './types/openapi';
+import { ContentObject, OpenAPIObject, OperationObject, PathItemObject, ReferenceObject } from './types/openapi';
 import { writeArray, writeStatements } from './utils/index.js';
 
 /**
@@ -200,12 +200,21 @@ function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controll
 }}) {
   /** 控制器请求方法集合 */
   const initializerArray: string[] = [];
+  
   Object.keys(controller).forEach(functionName=>{
     if (controller[functionName].description) {
       initializerArray.push(`/** ${controller[functionName].description} */`)
     } else {
       initializerArray.push(`/** 该请求没有写备注! */`)
     }
+    /** 正常响应码 */
+    const code = controller[functionName].method === 'post' ? '201' : '200';
+    const responseObject = (controller[functionName].responses[code] as any ).content as ContentObject | undefined;
+    if (responseObject) console.log('>>>todo1');
+    const $ref = (<ReferenceObject>responseObject?.['application/json']?.schema)?.$ref;
+    if ($ref)
+      console.log($ref.split('/').slice(-1)[0])
+
     initializerArray.push(...[
       /** 远程方法 */
       `${functionName}: () => {`,
@@ -295,7 +304,7 @@ function generateSdks(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
   Object.keys(controllerMap).forEach(controllerName=>{
     generateSdk(NestSDK, controllerName, controllerMap[controllerName]);
   })
-  console.log(controllerMap)
+  // console.log(controllerMap)
 }
 
 function main() {
