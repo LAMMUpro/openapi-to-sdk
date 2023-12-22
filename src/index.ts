@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import { ClassDeclaration, Project, Scope, SourceFile } from "ts-morph";
 import { ContentObject, OpenAPIObject, OperationObject, PathItemObject, ReferenceObject } from './types/openapi';
-import { writeArray, writeStatements } from './utils/index.js';
+import { paramList2Define, pickModelNameFromRef, writeArray, writeStatements } from './utils/index.js';
 
 /**
  * 解析openapi文件，得到object对象
@@ -207,18 +207,34 @@ function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controll
     } else {
       initializerArray.push(`/** 该请求没有写备注! */`)
     }
-    /** 正常响应码 */
-    const code = controller[functionName].method === 'post' ? '201' : '200';
-    const responseObject = (controller[functionName].responses[code] as any ).content as ContentObject | undefined;
-    if (responseObject) console.log('>>>todo1');
-    const $ref = (<ReferenceObject>responseObject?.['application/json']?.schema)?.$ref;
-    if ($ref)
-      console.log($ref.split('/').slice(-1)[0])
+
+    /**
+     * 响应类型
+     */
+    let responseType = '';
+    /** content有则是配置了响应 */
+    const responseObject = controller[functionName].responses?.['default']?.content;
+    if (responseObject) console.log('>>>配置了响应');
+    const schema = responseObject?.['application/json']?.schema;
+    if (schema && '$ref' in schema) {
+      const modelName = pickModelNameFromRef(schema.$ref);
+      if (modelName) responseType = `<${modelName}>`;
+      //TODO 配置导入
+    }
+
+    /**
+     * 请求参数
+     */
+    let paramList: Array<{name: string, type: string}> = [];
+    if (controller[functionName].parameters?.length) {
+
+    }
+    const paramDefine = paramList2Define(paramList);
 
     initializerArray.push(...[
       /** 远程方法 */
-      `${functionName}: () => {`,
-      `return this.sendRequest({method: '${controller[functionName].method}', path: '${controller[functionName].path}'})`,
+      `${functionName}: (${paramDefine}) => {`,
+      `return this.sendRequest${responseType}({method: '${controller[functionName].method}', path: '${controller[functionName].path}'})`,
       '},',
     ])
   })
@@ -330,6 +346,12 @@ function main() {
     indentSize: 2,
     convertTabsToSpaces: true,
   });
+
+  /** 导入依赖 */
+  sourceFile.addImportDeclaration({
+    moduleSpecifier: './src/in',
+    namedImports: ['SomeFunction'],
+  })
 
   // console.log(sourceFile.getFullText());
 
