@@ -97,7 +97,6 @@ function generateCommonFunction(sourceFile: SourceFile, openapiObject: OpenAPIOb
     '请求方法(默认)',
     '带请求结果处理过程'
   ])
-
   sourceFile.addFunction({
     name: '_fetch_',
     isAsync: true,
@@ -112,6 +111,32 @@ function generateCommonFunction(sourceFile: SourceFile, openapiObject: OpenAPIOb
       'const res = await fetch(options.path, options);',
       'const result: T = await res.json();',
       'return result;',
+    ]
+  })
+
+  writeStatements(sourceFile, [
+    '请求path的动态参数替换 //TODO，gpt写的函数，待测试',
+    "@example replacePathParams('/page-node/{typeId}/{id}', {id: 1, typeId: 2}) => /page-node/2/1"
+  ])
+  sourceFile.addFunction({
+    name: 'replacePathParams',
+    parameters: [
+      {
+        name: 'path',
+        type: 'string'
+      },
+      {
+        name: 'query',
+        type: 'any'
+      }
+    ],
+    statements: [
+      'const regex = /{([^}]+)}/g; // 匹配动态参数的正则表达式',
+      'let replacedPath = path.replace(regex, (match, param) => {',
+      'const value = query[param]; // 从查询参数中获取对应的值',
+      'return value !== undefined ? String(value) : match; // 如果值存在，则进行替换；否则保持原样',
+      '});',
+      'return replacedPath;',
     ]
   })
 }
@@ -180,9 +205,10 @@ function generateCommonClass(sourceFile: SourceFile, openapiObject: OpenAPIObjec
       }
     ],
     statements: [
+      'const path = replacePathParams(options.path, options.query);',
       'const res = await this.request<T>({',
       '...options,',
-      'path: `${this.origin}${options.path}`',
+      'path: `${this.origin}${path}`',
       '});',
       'return res;',
     ],
@@ -227,7 +253,7 @@ function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controll
      */
     let paramList: Array<{name: string, type: string}> = [];
     if (controller[functionName].parameters?.length) {
-
+      console.log(controller[functionName].parameters);
     }
     const paramDefine = paramList2Define(paramList);
 

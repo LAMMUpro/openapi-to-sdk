@@ -45,6 +45,22 @@ async function _fetch_<T>(options: RequestType) {
   return result;
 }
 
+/**
+ * 请求path的动态参数替换 //TODO，gpt写的函数，待测试
+ * @example replacePathParams('/page-node/{typeId}/{id}', {id: 1, typeId: 2}) => /page-node/2/1
+ */
+function replacePathParams(path: string, query: any) {
+  const regex = /{([^}]+)}/g; // 匹配动态参数的正则表达式
+
+  let replacedPath = path.replace(regex, (match, param) => {
+    const value = query[param]; // 从查询参数中获取对应的值
+    if (!['number', 'string'].includes(typeof value)) console.warn(`query参数${param}字段类型不正确`, query);
+    return value !== undefined ? String(value) : match; // 如果值存在，则进行替换；否则保持原样
+  });
+
+  return replacedPath;
+}
+
 /** 
  * 请求类封装
  */
@@ -67,9 +83,10 @@ export class Request {
 
   /** 发送http请求 */
   async protected sendRequest<T>(options: RequestType) {
+    const path = replacePathParams(options.path, options.query);
     const res = await this.request<T>({
       ...options,
-      path: `${this.origin}${options.path}`
+      path: `${this.origin}${path}`
     });
     //TODO 处理结果
     return res;
