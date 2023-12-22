@@ -37,7 +37,8 @@ export interface ServerVariableObject {
 }
 export interface ComponentsObject {
   schemas?: Record<string, SchemaObject | ReferenceObject>;
-  responses?: Record<string, ResponseObject | ReferenceObject>;
+  /** 响应格式，key和value做了类型收缩 */
+  responses?: Record<'default'|'1XX'|'2XX'|'3XX'|'4XX'|'5XX', ResponseObject>;
   parameters?: Record<string, ParameterObject | ReferenceObject>;
   examples?: Record<string, ExampleObject | ReferenceObject>;
   requestBodies?: Record<string, RequestBodyObject | ReferenceObject>;
@@ -70,7 +71,7 @@ export interface OperationObject {
   operationId?: string;
   parameters?: (ParameterObject | ReferenceObject)[];
   requestBody?: RequestBodyObject | ReferenceObject;
-  responses: ResponsesObject;
+  responses: ComponentsObject['responses'];
   callbacks?: CallbacksObject;
   deprecated?: boolean;
   security?: SecurityRequirementObject[];
