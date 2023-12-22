@@ -13,3 +13,13 @@ export function writeStatements(sourceFile: SourceFile, array: string[]) {
     writer.write(' */').conditionalNewLine(true);
   })
 }
+
+/** 从$ref提取模型类型名称，有可能是空字符串 */
+export function pickModelNameFromRef($ref: string) {
+  return $ref.split?.('/')?.slice?.(-1)?.[0] || '';
+}
+
+/** 参数类型数组转函数参数定义 */
+export function paramList2Define(paramList: Array<{name: string, type: string}>) {
+  return paramList.map(item => `${item.name}: ${item.type}`).join(', ');
+}
