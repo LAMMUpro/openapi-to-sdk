@@ -251,16 +251,41 @@ function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controll
     /**
      * 请求参数
      */
-    let paramList: Array<{name: string, type: string}> = [];
+    let paramList: Array<{name: 'query'|'data', type?: string, default?: any, required?: boolean}> = [];
+    /** 处理函数请求中的query */
     if (controller[functionName].parameters?.length) {
-      console.log(controller[functionName].parameters);
+      paramList.push({ name: 'query', type: `{
+        ${controller[functionName].parameters!.map(item => 
+          `/** ${item.description || ''} */
+          ${item.name}${item.required?'':'?'}: ${(item.schema as any).type}`
+        ).join('\n')}
+      }` })
     }
+    /** 处理函数请求中的body */
+    const requestBody = controller[functionName].requestBody;
+    if (requestBody) {
+      if ('content' in requestBody) {
+        const schema = requestBody.content['application/json'].schema || {};
+        if ('$ref' in schema) {
+          //TODO 配置导入
+          paramList.push({ name: 'data', type: pickModelNameFromRef(schema.$ref) });
+        }
+      }
+    }
+
     const paramDefine = paramList2Define(paramList);
 
     initializerArray.push(...[
       /** 远程方法 */
-      `${functionName}: (${paramDefine}) => {`,
-      `return this.sendRequest${responseType}({method: '${controller[functionName].method}', path: '${controller[functionName].path}'})`,
+      `${functionName}: (
+        ${paramDefine}${paramDefine?',\n':''} validate = false`,
+      `) => {`,
+        `if (validate && todo.safeParse(data)) return;`,
+        `return this.sendRequest${responseType}({`,
+          ...paramList.map(item=> `${item.name},`),
+          `method: '${controller[functionName].method}',`,
+          `path: '${controller[functionName].path}'`,
+        `})`,
       '},',
     ])
   })

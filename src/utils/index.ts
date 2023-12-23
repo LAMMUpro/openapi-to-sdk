@@ -20,6 +20,6 @@ export function pickModelNameFromRef($ref: string) {
 }
 
 /** 参数类型数组转函数参数定义 */
-export function paramList2Define(paramList: Array<{name: string, type: string}>) {
-  return paramList.map(item => `${item.name}: ${item.type}`).join(', ');
+export function paramList2Define(paramList: Array<{name: 'query'|'data'|'validate', type?: string, default?: any, required?: boolean}>) {
+  return paramList.map(item => `${item.name}: ${item.type}${item.default?` = ${item.default}`:''}`).join(',\n');
 }

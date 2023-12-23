@@ -69,7 +69,8 @@ export interface OperationObject {
   description?: string;
   externalDocs?: ExternalDocumentationObject;
   operationId?: string;
-  parameters?: (ParameterObject | ReferenceObject)[];
+  /** 类型收缩 */
+  parameters?: ParameterObject[];
   requestBody?: RequestBodyObject | ReferenceObject;
   responses: ComponentsObject['responses'];
   callbacks?: CallbacksObject;

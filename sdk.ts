@@ -122,6 +122,7 @@ export class NestSDK extends Request {
      * @returns 响应结果
      */
     createApplication: (query: ApplicationDtoCreate, data: ApplicationDtoCreate, validate=false) => {
+      if (validate && todo.safeParse(data)) return;
       return this.sendRequest<ApplicationDto>({
         method: 'post',
         path: '/application/{id}',
