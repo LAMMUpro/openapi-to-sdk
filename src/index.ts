@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import { ClassDeclaration, Project, Scope, SourceFile } from "ts-morph";
 import { ContentObject, OpenAPIObject, OperationObject, PathItemObject, ReferenceObject } from './types/openapi';
-import { paramList2Define, pickModelNameFromRef, writeArray, writeStatements } from './utils/index.js';
+import { addModelDep, paramList2Define, pickModelNameFromRef, writeArray, writeStatements } from './utils/index.js';
 
 /**
  * 解析openapi文件，得到object对象
@@ -223,7 +223,7 @@ function generateCommonClass(sourceFile: SourceFile, openapiObject: OpenAPIObjec
 function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controller: {[key: string]: OperationObject & {
   method: 'get'|'post'|'put'|'delete'
   path: string
-}}) {
+}}, deps: { [key:string]: Array<string> }) {
   /** 控制器请求方法集合 */
   const initializerArray: string[] = [];
   
@@ -240,12 +240,12 @@ function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controll
     let responseType = '';
     /** content有则是配置了响应 */
     const responseObject = controller[functionName].responses?.['default']?.content;
-    if (responseObject) console.log('>>>配置了响应');
     const schema = responseObject?.['application/json']?.schema;
     if (schema && '$ref' in schema) {
       const modelName = pickModelNameFromRef(schema.$ref);
       if (modelName) responseType = `<${modelName}>`;
-      //TODO 配置导入
+
+      addModelDep(deps, modelName);
     }
 
     /**
@@ -267,8 +267,9 @@ function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controll
       if ('content' in requestBody) {
         const schema = requestBody.content['application/json'].schema || {};
         if ('$ref' in schema) {
-          //TODO 配置导入
-          paramList.push({ name: 'data', type: pickModelNameFromRef(schema.$ref) });
+          const modelName = pickModelNameFromRef(schema.$ref);
+          paramList.push({ name: 'data', type: modelName });
+          addModelDep(deps, modelName);
         }
       }
     }
@@ -313,7 +314,7 @@ function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controll
 /**
  * 循环生成sdk
  */
-function generateSdks(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
+function generateSdks(sourceFile: SourceFile, openapiObject: OpenAPIObject, deps: { [key:string]: Array<string> }) {
 
   writeStatements(sourceFile, [
     'SDK'
@@ -369,12 +370,13 @@ function generateSdks(sourceFile: SourceFile, openapiObject: OpenAPIObject) {
     // ] as const).filter(item=>item.value).map(item=>generateSdk(NestSDK, path, item.key, item.value!))
   })
   Object.keys(controllerMap).forEach(controllerName=>{
-    generateSdk(NestSDK, controllerName, controllerMap[controllerName]);
+    generateSdk(NestSDK, controllerName, controllerMap[controllerName], deps);
   })
-  // console.log(controllerMap)
 }
 
 function main() {
+  /** 依赖 */
+  const deps: { [key:string]: Array<string> } = {};
   const openapiObject = parseOpenApiFile('./swagger.demo.json');
   const sdkFileName = 'nestSDK.ts';
   if (fs.existsSync(sdkFileName)) fs.rmSync(sdkFileName);
@@ -391,7 +393,7 @@ function main() {
   generateCommonClass(sourceFile, openapiObject);
 
   /** 生成关键sdk */
-  generateSdks(sourceFile, openapiObject);
+  generateSdks(sourceFile, openapiObject, deps);
 
   sourceFile.formatText({
     indentSize: 2,
@@ -399,11 +401,13 @@ function main() {
   });
 
   /** 导入依赖 */
-  sourceFile.addImportDeclaration({
-    moduleSpecifier: './src/in',
-    namedImports: ['SomeFunction'],
+  Object.keys(deps).forEach(path=>{
+    sourceFile.addImportDeclaration({
+      moduleSpecifier: path,
+      namedImports: deps[path],
+    })
   })
-
+  
   // console.log(sourceFile.getFullText());
 
   sourceFile.saveSync();

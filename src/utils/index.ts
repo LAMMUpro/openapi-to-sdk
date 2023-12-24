@@ -23,3 +23,25 @@ export function pickModelNameFromRef($ref: string) {
 export function paramList2Define(paramList: Array<{name: 'query'|'data'|'validate', type?: string, default?: any, required?: boolean}>) {
   return paramList.map(item => `${item.name}: ${item.type}${item.default?` = ${item.default}`:''}`).join(',\n');
 }
+
+/** 添加模型依赖 */
+export function addModelDep(deps: { [key:string]: Array<string> }, modelName: string) {
+  if (modelName.endsWith('Dto')) {
+    const path = './zod';
+    if (deps[path]) {
+      if (!deps[path].includes(modelName)) deps[path].push(modelName);
+    } else {
+      deps[path] = [modelName];
+    }
+  } else if (modelName.includes('Dto')) {
+    const dtoModelName = modelName.slice(0, modelName.indexOf('Dto'));
+    const path = `./zodExt/${dtoModelName}`;
+    if (deps[path]) {
+      if (!deps[path].includes(modelName)) deps[path].push(modelName);
+    } else {
+      deps[path] = [modelName];
+    }
+  } else {
+    console.warn(modelName+'未处理')
+  }
+}
