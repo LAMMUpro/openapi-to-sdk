@@ -11,7 +11,9 @@
     "skipLibCheck": true,
     "moduleResolution": "Node",
     "baseUrl": "./",
-    "paths": {}
+    "paths": {},
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "ts-node": { "esm": true },
   "include": ["src/*.ts", "src/**/*.ts"],
