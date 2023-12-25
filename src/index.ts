@@ -277,11 +277,11 @@ function generateSdk(NestSDK: ClassDeclaration, controllerName: string, controll
     const paramDefine = paramList2Define(paramList);
 
     initializerArray.push(...[
-      /** 远程方法 */
-      `${functionName}: (
-        ${paramDefine}${paramDefine?',\n':''} validate = false`,
+      /** 远程方法调用函数 */
+      `${functionName}: (`,
+        `${paramDefine}${paramList.find(item=>item.name=='data')?`${paramDefine?',\nvalidate = false':'validate = false'}`:''}`,
       `) => {`,
-        `if (validate && todo.safeParse(data)) return;`,
+        ...[paramList.find(item=>item.name=='data')?`if (validate && ${paramList.find(item=>item.name=='data')?.type}.safeParse(data)) return;`:''].filter(Boolean),
         `return this.sendRequest${responseType}({`,
           ...paramList.map(item=> `${item.name},`),
           `method: '${controller[functionName].method}',`,
